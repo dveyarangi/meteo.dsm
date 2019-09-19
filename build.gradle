@@ -1,0 +1,113 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+sourceCompatibility = 1.8
+version = '1.0'
+
+project.ext.projectName = 'meteo.dsm'
+project.ext.lwjglVersion = "2.9.2"
+project.ext.geotoolsVersion = "13.2"
+project.ext.gdxVersion = "1.7.1"
+
+
+
+
+repositories {
+	mavenCentral()   
+	maven { url "http://mvnrepository.com/artifact" }
+	maven { url "http://download.osgeo.org/webdav/geotools/" }
+ 	maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }	
+	maven { url "https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases/" }
+	flatDir {
+		dirs 'lib'
+	}
+}
+
+configurations.all {
+    exclude group: 'javax.media'
+}
+
+dependencies {
+
+
+	compile name: "midas.core-1.0.0"
+	compile name: "midas.visual-1.0.0"
+	
+    compile "aopalliance:aopalliance:1.0"
+    compile "javax.inject:javax.inject:1"
+    compile "org.slf4j:slf4j-api:1.7.25"
+    compile "ch.qos.logback:logback-classic:1.1.7"
+	compile "ch.qos.logback:logback-core:1.1.7"
+    compile "org.projectlombok:lombok:1.16.2"
+    
+
+    compile name: "jai_core-1.1.3"
+    compile name: "jai_codec-1.1.3"
+    compile name: "jai_imageio-1.1.1"
+
+    compile "org.geotools:gt-shapefile:${geotoolsVersion}"
+    compile "org.geotools:gt-swing:${geotoolsVersion}"
+    compile "org.geotools:gt-grid:${geotoolsVersion}"
+    compile "org.geotools:gt-epsg-hsql:${geotoolsVersion}"
+    compile "org.geotools:gt-geotiff:${geotoolsVersion}"
+
+    // ucar libs for reading grib and netcdf files:
+	// netcdf reader:
+	//compile 'edu.ucar:netcdf4:4.6.2'
+	// grib reader:
+	//compile 'edu.ucar:grib:4.6.2'
+	//compile 'edu.ucar:cdm:4.6.2'
+	
+	// utilities    
+	//compile 'gov.nist.math:jama:1.0.3'
+
+	// calculation units and measures
+	// compile 'org.jscience:jscience:4.3.1'
+    
+	compile "org.imgscalr:imgscalr-lib:4.2"
+    // libgdx visualization:
+    compile "com.badlogicgames.gdx:gdx:1.7.1"
+	//compile name: "gdx-1.7.1"
+	
+    /////////////////////////////////////////////////
+    // libgdx visualization:
+    
+    compile "com.badlogicgames.gdx:gdx-backend-lwjgl:$gdxVersion"
+    compile "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"	
+	compile "org.lwjgl.lwjgl:lwjgl:${lwjglVersion}"
+ // //  compile "com.badlogicgames.gdx:gdx-platform:1.7.1:natives-desktop"
+ //   compile "com.badlogicgames.ashley:ashley:1.6.0" 
+    compile "org.projectlombok:lombok:1.16.2"
+    
+ 	//compile "com.google.inject:guice:4.1.0"
+    compile "com.google.guava:guava:19.0"
+    compile 'com.google.code.gson:gson:2.7'
+    //compile "com.google.code.findbugs:annotations:2.0.1"
+    
+    //compile "org.reflections:reflections:0.9.10"
+    compile "org.apache.commons:commons-lang3:3.1"
+    compile "commons-io:commons-io:2.4"
+
+    
+    testCompile "junit:junit:4.10"
+
+}
+
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': projectName,
+                   'Implementation-Version': version
+    }
+}
+
+
+eclipse {
+	project {
+  		natures 'org.springsource.ide.eclipse.gradle.core.nature'
+  		name = projectName
+	}
+}
+
+
