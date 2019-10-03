@@ -14,8 +14,7 @@ import org.geotools.coverage.grid.GridGeometry2D;
 import org.imgscalr.Scalr;
 import org.junit.Test;
 
-import meteo.dsm.dem.alos.AlosCfg;
-import meteo.dsm.dem.alos.AlosTile;
+import meteo.dsm.DSMCfg;
 import midas.visual.gis.GISResources;
 import midas.visual.gis.MapRenderer;
 import midas.visual.gis.PoliticalMapLayerConf;
@@ -32,9 +31,10 @@ public class TestAlosDSMTile
 
 	@Test public void testTileRead() throws IOException
 	{
-		AlosCfg cfg = new AlosCfg();
+		DSMCfg cfg = new DSMCfg();
+		AlosCfg alosCfg = new AlosCfg();
 		
-		AlosTile tile = new AlosTile(cfg, 32, 34);
+		AlosTile tile = new AlosTile(cfg, alosCfg, 32, 34);
 		
 		GridCoverage2D grid = tile.readDSMGrid();
 		

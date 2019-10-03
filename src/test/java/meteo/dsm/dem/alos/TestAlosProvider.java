@@ -2,8 +2,6 @@ package meteo.dsm.dem.alos;
 
 import org.junit.Test;
 
-import com.badlogic.gdx.math.Vector3;
-
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMProvider;
 import meteo.util.geodesy.Datum;
@@ -19,11 +17,15 @@ public class TestAlosProvider
 		
 		AOI coverage = new AOI(32,32,2,2);
 		Datum datum = Datum.WGS_84;
+		int resolution = 150;
 		
-		DEMProvider provider = new AlosProvider(cfg, alosCfg, coverage, datum);
+		DEMProvider provider = new AlosProvider(cfg, alosCfg, coverage, datum, resolution);
+		provider.init();
 		
-		Vector3 [][] output = provider.getAbsolutePositions(150);
+		provider.iterateWindows(resolution, resolution, (window) -> {
+			System.out.println(window);
+		});
 		
-		System.out.println(output);
+		//System.out.println(output);
 	}
 }

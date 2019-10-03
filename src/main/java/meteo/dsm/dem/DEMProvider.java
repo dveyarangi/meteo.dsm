@@ -1,19 +1,12 @@
 package meteo.dsm.dem;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
 import com.badlogic.gdx.math.Vector3;
 
 import lombok.extern.slf4j.Slf4j;
 import meteo.dsm.DSMCfg;
 import meteo.util.geodesy.Datum;
 import meteo.util.geodesy.GeoUtil;
-import meteo.util.sampling.ArrayWindow;
+import meteo.util.sampling.MinMaxSampler;
 import midas.core.spatial.AOI;
 
 
@@ -23,15 +16,19 @@ public abstract class DEMProvider
 	
 	public abstract void readTiles(AOI coverage, DEMTileConsumer consumer);
 	
-	
-	private String name;
-	private DSMCfg cfg;
+	protected DSMCfg cfg;
 	
 	private AOI coverage;
 	private Datum datum;
-	private int res;
-	private Object vec;
+	private int cacheRes;
+	
+	private int w, h;
+
 	private Vector3[][] vectors;
+	
+	MinMaxSampler mmx = new MinMaxSampler();
+	MinMaxSampler mmy = new MinMaxSampler();
+	MinMaxSampler mmz = new MinMaxSampler();
 	
 	/**
 	 * Creates a new DEM data provider for specified coverage area 
@@ -41,49 +38,54 @@ public abstract class DEMProvider
 	 * @param datum
 	 * @param res - grid samples per lat/lon unit
 	 */
-	protected DEMProvider(String name, DSMCfg cfg, AOI coverage, Datum datum, int res)
+	protected DEMProvider(DSMCfg cfg, AOI coverage, Datum datum, int cacheRes)
 	{
-		this.name = name;
 		this.cfg = cfg;
 		this.coverage = coverage;
 		this.datum = datum;
-		this.res = res;
-		
+		this.cacheRes = cacheRes;
+		this.h = (int) ( (coverage.getMaxLat() - coverage.getMinLat()) * cacheRes );
+		this.w = (int) ( (coverage.getMaxLon() - coverage.getMinLon()) * cacheRes );
+	}
+	
+	public void init() {
 		this.vectors = loadAbsolutePositionsCache();
 	}
 	
 	/**
-	 * @param aoi - the area of the extracted data
-	 * @param datum - earth model
-	 * @param res - samples per lat/lon
 	 * @return
 	 */
 	private Vector3 [][] loadAbsolutePositionsCache()
 	{
-		int h = (int) ( (coverage.getMaxLat() - coverage.getMinLat()) * res );
-		int w = (int) ( (coverage.getMaxLon() - coverage.getMinLon()) * res );
 		
 		Vector3 [][] output = new Vector3[w][h];
 		
-		readTiles(coverage, tile -> appendTile(output, tile, res));
+		readTiles(coverage, tile -> appendTile(output, tile, cacheRes));
 
 		return output;
 	}
 	
-	public void iterateWindows(int dx, int dy, DEMVectorsConsumer consumer)
+	public void iterateWindows(int dx, int dy, DEMWindowConsumer consumer)
 	{
-		for(int x = 0; x < vectors.length; x += dx)
-			for(int y = 0; y < vectors[0].length; y += dy)
+		for(int x = 0; x < w; x += dx)
+			for(int y = 0; y < h; y += dy)
 			{
-				consumer.consumeWindow(new ArrayWindow<>(vectors, x, y, 
-						Math.min(dx, vectors.length-x), Math.min(dy,  vectors[0].length-dy)));
+				float latCenter = coverage.getMinLat() + y / cacheRes + 0.5f;
+				float lonCenter = coverage.getMinLon() + x / cacheRes + 0.5f;
+				
+				consumer.consumeWindow(new DEMWindow(vectors, x, y, 
+						Math.min(dx, w-x), Math.min(dy, h-y),
+						new AOI(latCenter, lonCenter, 0.5f, 0.5f)));
+
 			}
 	}
 	
 	protected void appendTile(Vector3 [][] output, DEMTile tile, int res)
 	{
 		
-		File demCacheFile = new File(getCacheFilePath(tile, res));
+		int [][] heightmap = tile.getHeightmap(res);
+		
+		// convert heightmap to earth cartesian coordinates:
 
 		float minLon = tile.getCoverage().getMinLon();
 		float maxLon = tile.getCoverage().getMaxLon();
@@ -93,34 +95,9 @@ public abstract class DEMProvider
 		float sLon = (maxLon - minLon) / res;
 		float sLat = (maxLat - minLat) / res;
 		
-		int [][] heightmap = null;
-		if( !demCacheFile.exists() )
-		{
-		
-			heightmap = tile.readHeightmap( res );
-
-					
-			demCacheFile.getParentFile().mkdirs();
-			try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(demCacheFile)))
-			{
-				oos.writeObject(heightmap);
-				log.debug("Wrote cache file " + demCacheFile.getAbsolutePath());
-				
-			} catch( IOException e ) { e.printStackTrace(); }
-		}
-		else // has cache file
-		{
-			try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream(demCacheFile)))
-			{
-				heightmap = (int[][]) ois.readObject();
-			} 
-			catch( IOException e ) { e.printStackTrace(); } 
-			catch( ClassNotFoundException e ) { e.printStackTrace(); }
-			
-		}
-		
 		int sy = (int) ( (tile.getCoverage().getMinLat() - coverage.getMinLat()) * res );
 		int sx = (int) ( (tile.getCoverage().getMinLon() - coverage.getMinLon()) * res );
+		
 		
 		for(int x = 0; x < res; x ++)
 			for(int y = 0; y < res; y ++)
@@ -135,22 +112,16 @@ public abstract class DEMProvider
 				
 				meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(earthRadius, lat, lon);
 				
+				mmx.put(pos.xf());
+				mmy.put(pos.yf());
+				mmz.put(pos.zf());
+				
+				if( pos.x() < 0 || pos.y() < 0 ||pos.z() < 0)
+					System.out.println("hiuh");
+				
 				output[sx+x][sy+y] = new Vector3((float)pos.x(), (float)pos.y(), (float)pos.z());
 				
 			}
-		
-
 	}
 
-	private String getCacheFilePath(DEMTile tile, int res)
-	{
-		return new StringBuilder() 
-				.append(cfg.getCacheDir()).append("/").append(res).append("/")
-				.append("dsm_dem_").append(name).append("_").append(res)
-				.append("_").append((int)tile.getCoverage().getMinLat())
-				.append("_").append((int)tile.getCoverage().getMinLon())
-				
-				.append(".dsmgrid")
-				.toString();
-	}
 }

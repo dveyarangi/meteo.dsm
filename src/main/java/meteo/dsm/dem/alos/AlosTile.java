@@ -6,11 +6,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 
 import javax.media.jai.PlanarImage;
 
@@ -22,22 +18,17 @@ import org.geotools.gce.geotiff.GeoTiffReader;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterValue;
 
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.math.Vector3;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import meteo.dsm.DSMGrid;
+import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMTile;
-import meteo.dsm.landuse.LanduseProvider;
 import meteo.util.sampling.ArraySubsampler;
 import midas.core.spatial.AOI;
-import midas.core.spatial.geo.GeoUtil;
 
 @Slf4j
-public class AlosTile implements DEMTile
+public class AlosTile extends DEMTile
 {
-	private AlosCfg cfg;
+	private AlosCfg alosCfg;
 	
 	private String filenamePreffix;
 	
@@ -48,16 +39,17 @@ public class AlosTile implements DEMTile
 	
 	@Getter private AOI coverage; 
 	
-	public AlosTile(AlosCfg cfg, int lat, int lon)
+	public AlosTile(DSMCfg cfg, AlosCfg alosCfg, int lat, int lon)
 	{
-		this.cfg = cfg;
+		super(cfg);
+		this.alosCfg = alosCfg;
 		
 		this.coverage = new AOI(lat+0.5f, lon+0.5f, 0.5f, 0.5f);
 		
 		this.tileId = createTileId(this.coverage);
 		
 		filenamePreffix = new StringBuilder()
-				.append(cfg.getDataDir())
+				.append(alosCfg.getDataDir())
 				.append("/")
 				.append(createFolderName(lat, lon))
 				.append("/")
@@ -117,144 +109,7 @@ public class AlosTile implements DEMTile
 	public static final String TYPE_DEM = "dem";
 	public static final String TYPE_LANDUSE = "landuse";
 
-	
-	public DSMGrid toVectorArray(int res, LanduseProvider landuse)
-	{
-		int [][] landuseCodes = null;
-		
-		File demCacheFile = null;//new File(getCacheFilePath(res, TYPE_DEM));
-		File landuseCacheFile = null;//new File(getCacheFilePath(res, TYPE_LANDUSE));
-		
-		BufferedImage dsmImage = null;
 
-		float minLon = coverage.getMinLon();
-		float maxLon = coverage.getMaxLon();
-		float minLat = coverage.getMinLat();
-		float maxLat = coverage.getMaxLat();
-		
-		float sLon = (maxLon - minLon) / res;
-		float sLat = (maxLat - minLat) / res;
-		
-		int [][] values = null;
-		if( !demCacheFile.exists() )
-		{
-		
-			GridCoverage2D grid;
-			try
-			{
-				grid = readDSMGrid();
-			} catch( IOException e1 )
-			{
-				e1.printStackTrace();
-				return null;
-			}
-			
-			if( grid != null) {
-			
-				PlanarImage image = (PlanarImage) grid.getRenderedImage();
-				
-				Raster dsmRaster = image.getData();
-				
-				int ow = image.getWidth(), oh = image.getHeight();
-				if( ow % res != 0)
-					throw new IllegalArgumentException("Requested resolution must be a divisor of " + image.getWidth());
-				int [] val = new int[1];
-				int [][] origValues = new int [image.getWidth()][image.getHeight()];
-			
-				for(int x = 0; x < ow; x ++)
-					for(int y = 0; y < oh; y ++)
-					{
-						dsmRaster.getPixel(x, y, val);
-						origValues[x][y] = val[0];
-					}
-
-				values = ArraySubsampler.subsample(origValues, res, null);
-				
-			}
-			
-					
-			demCacheFile.getParentFile().mkdirs();
-			try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(demCacheFile)))
-			{
-				oos.writeObject(values);
-				log.debug("Wrote cache file " + demCacheFile.getAbsolutePath());
-				
-			} catch( IOException e ) { e.printStackTrace(); }
-		}
-		else // has cache file
-		{
-			try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream(demCacheFile)))
-			{
-				values = (int[][]) ois.readObject();
-			} 
-			catch( IOException e ) { e.printStackTrace(); } 
-			catch( ClassNotFoundException e ) { e.printStackTrace(); }
-			
-		}
-		
-		
-		
-		if( !landuseCacheFile.exists()) 
-		{
-			landuseCodes = new int[res][res];
-			
-			for(int x = 0; x < res; x ++)
-				for(int y = 0; y < res; y ++)
-				{
-					float lat = maxLat - y * sLat;
-					float lon = minLon + x * sLon;
-			
-					landuseCodes[x][y] = landuse.getCode(lat, lon);
-				}
-			
-			try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(landuseCacheFile)))
-			{
-				oos.writeObject(landuseCodes);
-				log.debug("Wrote cache file " + landuseCacheFile.getAbsolutePath());
-				
-			} catch( IOException e ) { e.printStackTrace(); }
-
-		}
-		else {
-			try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream(landuseCacheFile)))
-			{
-				landuseCodes = (int[][]) ois.readObject();
-			} 
-			catch( IOException e ) { e.printStackTrace(); } 
-			catch( ClassNotFoundException e ) { e.printStackTrace(); }
-			
-		}
-			
-
-		Vector3[][] vectors=  new Vector3[res][res];
-		Color [][] colors = new Color[res][res];
-		for(int x = 0; x < res; x ++)
-			for(int y = 0; y < res; y ++)
-			{
-				float lat = maxLat - y * sLat;
-				float lon = minLon + x * sLon;
-				double z;
-				if( values != null )
-					z = GeoUtil.getEarthRadiusKm(lat) + values[x][y] / 100f;
-				else
-					z = GeoUtil.getEarthRadiusKm(lat);
-				
-				meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(z, lat, lon);
-				
-				vectors[x][y] = new Vector3((float)pos.x(), (float)pos.y(), (float)pos.z());
-				
-				colors[x][y] = landuse.getColor(landuseCodes[x][y]);
-				
-				if( colors[x][y] == null)
-					colors[x][y] = Color.BLACK;
-				
-			}
-		
-		return new DSMGrid(vectors, colors);
-
-	}
-	
-	
 	
     private static BufferedImage resize(BufferedImage img, int width, int height) {
     	BufferedImage resizedImage = new BufferedImage(width, height, img.getType());
@@ -309,4 +164,10 @@ public class AlosTile implements DEMTile
 	
 		return values;
 	}
+
+	public static final String NAME = "alos";
+	@Override
+	public String getName() { return NAME; }
+
+
 }

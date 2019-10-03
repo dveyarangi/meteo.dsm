@@ -151,11 +151,11 @@ public class SatelliteCameraController extends GestureDetector {
 			if (rotateRightPressed) camera.rotate(camera.up, -delta * rotateAngle);
 			if (rotateLeftPressed) camera.rotate(camera.up, delta * rotateAngle);
 			if (forwardPressed) {
-				camera.translate(tmpV1.set(camera.direction).scl(delta * translateUnits));
+				camera.translate(tmpV1.set(camera.direction).scl( delta * translateUnits));
 				if (forwardTarget) target.add(tmpV1);
 			}
 			if (backwardPressed) {
-				camera.translate(tmpV1.set(camera.direction).scl(-delta * translateUnits));
+				camera.translate(tmpV1.set(camera.direction).scl(radius * -delta * translateUnits));
 				if (forwardTarget) target.add(tmpV1);
 			}
 			if (autoUpdate) camera.update();
@@ -197,8 +197,8 @@ public class SatelliteCameraController extends GestureDetector {
 		else if (button == TRANSLATE_BUTTON) 
 		{
 			
-			lat -= 2*deltaY;
-			lon -= 2*deltaX;
+			lat -= 0.005*radius*deltaY;
+			lon -= 0.005*radius*deltaX;
 			
 			meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(radius, lat, lon);
 			camera.position.set(pos.xf(), pos.yf(), pos.zf());
@@ -207,7 +207,7 @@ public class SatelliteCameraController extends GestureDetector {
 		} 
 		else if (button == FORWARD_BUTTON) 
 		{
-			radius += 2*deltaY;
+			radius +=  radius * 2*deltaY;
 			meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(radius, lat, lon);
 			camera.position.set(pos.xf(), pos.yf(), pos.zf());
 			camera.lookAt(origin);
@@ -234,7 +234,7 @@ public class SatelliteCameraController extends GestureDetector {
 
 	public boolean zoom (float amount) {
 		if (!alwaysScroll && activateKey != 0 && !activatePressed) return false;
-		radius -= 5*amount;
+		radius -= 0.005*radius*amount;
 		meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(radius, lat, lon);
 		camera.position.set(pos.xf(), pos.yf(), pos.zf());
 		camera.lookAt(origin);

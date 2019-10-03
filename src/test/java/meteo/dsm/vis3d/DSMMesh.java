@@ -102,7 +102,7 @@ public class DSMMesh implements Disposable {
 
 
 	public DSMMesh (boolean isStatic, final DSMGrid grid, boolean smooth, int attributes) {
-		this(isStatic, grid.getVectors().length, grid.getVectors()[0].length, smooth, attributes);
+		this(isStatic, grid.getVectors().sx(), grid.getVectors().sy(), smooth, attributes);
 		set(grid);
 	}
 
@@ -177,7 +177,8 @@ public class DSMMesh implements Disposable {
 		for (int x = 0; x < width; ++x) {
 			for (int y = 0; y < height; ++y) {
 				VertexInfo v = getVertexAt(vertex00, x, y);
-				getWeightedNormalAt(v.normal, x, y);
+				grid.getVectors().normalAt(x, y, v.normal);
+				//getWeightedNormalAt(v.normal, x, y);
 				setVertex(y * width + x, v);
 			}
 		}
@@ -224,7 +225,7 @@ public class DSMMesh implements Disposable {
 	protected VertexInfo getVertexAt (final VertexInfo out, int x, int y) {
 		final float dx = (float)x / (float)(width - 1);
 		final float dy = (float)y / (float)(height - 1);
-		out.position.set(grid.getVectors()[x][y]);
+		out.position.set(grid.getVectors().at(x, y));
 		out.color.set(grid.getColors()[x][y]);
 		//out.color.set(color00).lerp(color10, dx).lerp(tmpC.set(color01).lerp(color11, dx), dy);
 		out.uv.set(dx, dy).scl(uvScale).add(uvOffset);
@@ -232,7 +233,7 @@ public class DSMMesh implements Disposable {
 	}
 
 	public Vector3 getPositionAt (Vector3 out, int x, int y) {
-		out.set(grid.getVectors()[x][y]);
+		out.set(grid.getVectors().at(x, y));
 		return out;
 	}
 

@@ -10,12 +10,11 @@ import midas.core.spatial.AOI;
 public class AlosProvider extends DEMProvider
 {
 	
-	public static final String NAME = "alos";
 	private AlosCfg alosCfg;
 	
-	protected AlosProvider( DSMCfg cfg, AlosCfg alosCfg, AOI coverage, Datum datum )
+	public AlosProvider( DSMCfg cfg, AlosCfg alosCfg, AOI coverage, Datum datum, int cacheRes )
 	{
-		super(NAME, cfg, coverage, datum);
+		super(cfg, coverage, datum, cacheRes);
 		this.alosCfg = alosCfg;
 	}
 
@@ -28,7 +27,7 @@ public class AlosProvider extends DEMProvider
 		int maxLon = (int) Math.ceil (coverage.getMaxLon());
 		for(int lat = minLat; lat < maxLat; lat ++ )
 			for(int lon = minLon; lon < maxLon; lon ++ )
-				consumer.consume( new AlosTile(alosCfg, lat, lon) );
+				consumer.consume( new AlosTile(cfg, alosCfg, lat, lon) );
 	}
 
 }

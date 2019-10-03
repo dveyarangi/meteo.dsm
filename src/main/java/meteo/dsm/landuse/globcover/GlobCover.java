@@ -18,10 +18,10 @@ import org.opengis.parameter.ParameterValue;
 
 import com.badlogic.gdx.graphics.Color;
 
-import meteo.dsm.dem.alos.AlosCfg;
+import meteo.dsm.DSMCfg;
 import meteo.dsm.landuse.LanduseProvider;
 
-public class GlobCover implements LanduseProvider
+public class GlobCover extends LanduseProvider
 {
 	
 	public static final String LANDUSE_FILE = "E:/meteo/dem/GlobCover/GLOBCOVER_L4_200901_200912_V2.3.tif";
@@ -33,29 +33,28 @@ public class GlobCover implements LanduseProvider
 	private int width;
 	private int height;
 	
-	public GlobCover() throws IOException
+	public GlobCover(DSMCfg cfg) throws IOException
 	{
-			AlosCfg cfg = new AlosCfg();
+		super(cfg);
 			
-			File f = new File(LANDUSE_FILE);
-			if( !f.exists() )
-				throw new IOException("Cannot fine landuse file " + LANDUSE_FILE);
-			
-			ParameterValue<OverviewPolicy> policy = AbstractGridFormat.OVERVIEW_POLICY.createValue();
-			policy.setValue(OverviewPolicy.IGNORE);
+		File f = new File(LANDUSE_FILE);
+		if( !f.exists() )
+			throw new IOException("Cannot fine landuse file " + LANDUSE_FILE);
+		
+		ParameterValue<OverviewPolicy> policy = AbstractGridFormat.OVERVIEW_POLICY.createValue();
+		policy.setValue(OverviewPolicy.IGNORE);
 
-			ParameterValue<String> gridsize = AbstractGridFormat.SUGGESTED_TILE_SIZE.createValue();
-			ParameterValue<Boolean> useJaiRead = AbstractGridFormat.USE_JAI_IMAGEREAD.createValue();
-			useJaiRead.setValue(true);
+		ParameterValue<String> gridsize = AbstractGridFormat.SUGGESTED_TILE_SIZE.createValue();
+		ParameterValue<Boolean> useJaiRead = AbstractGridFormat.USE_JAI_IMAGEREAD.createValue();
+		useJaiRead.setValue(true);
 
-			coverage = new GeoTiffReader(f).read(new GeneralParameterValue[]{policy, gridsize, useJaiRead});
+		coverage = new GeoTiffReader(f).read(new GeneralParameterValue[]{policy, gridsize, useJaiRead});
 
-			width = coverage.getRenderedImage().getWidth();
-			height = coverage.getRenderedImage().getHeight();
+		width = coverage.getRenderedImage().getWidth();
+		height = coverage.getRenderedImage().getHeight();
 
-			bounds = coverage.getEnvelope2D().getBounds2D();
-			legend = readLegend();
-			
+		bounds = coverage.getEnvelope2D().getBounds2D();
+		legend = readLegend();
 			
 	}
 
@@ -105,5 +104,8 @@ public class GlobCover implements LanduseProvider
 		
 		return legend;
 	}
+
+	@Override
+	public String getName() { return "globcover"; }
 
 }
