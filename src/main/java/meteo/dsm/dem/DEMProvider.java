@@ -3,10 +3,11 @@ package meteo.dsm.dem;
 import com.badlogic.gdx.math.Vector3;
 
 import lombok.extern.slf4j.Slf4j;
+import meteo.common.util.geodesy.Datum;
+import meteo.common.util.geodesy.GeoUtil;
+import meteo.common.util.geodesy.PolarCoord;
+import meteo.common.util.sampling.MinMaxSampler;
 import meteo.dsm.DSMCfg;
-import meteo.util.geodesy.Datum;
-import meteo.util.geodesy.GeoUtil;
-import meteo.util.sampling.MinMaxSampler;
 import midas.core.spatial.AOI;
 
 
@@ -24,7 +25,7 @@ public abstract class DEMProvider
 	
 	private int w, h;
 
-	private Vector3[][] vectors;
+	private DEMValue[][] values;
 	
 	MinMaxSampler mmx = new MinMaxSampler();
 	MinMaxSampler mmy = new MinMaxSampler();
@@ -49,22 +50,18 @@ public abstract class DEMProvider
 	}
 	
 	public void init() {
-		this.vectors = loadAbsolutePositionsCache();
+		log.debug("Caching DEM data...");
+		this.values = loadAbsolutePositionsCache();
 	}
 	
-	/**
-	 * @return
-	 */
-	private Vector3 [][] loadAbsolutePositionsCache()
+	public DEMValue at(float lat, float lon)
 	{
+		checkInitialized();
 		
-		Vector3 [][] output = new Vector3[w][h];
+		return values[xidx(lon)][yidx(lat)];
 		
-		readTiles(coverage, tile -> appendTile(output, tile, cacheRes));
-
-		return output;
 	}
-	
+
 	public void iterateWindows(int dx, int dy, DEMWindowConsumer consumer)
 	{
 		for(int x = 0; x < w; x += dx)
@@ -73,14 +70,14 @@ public abstract class DEMProvider
 				float latCenter = coverage.getMinLat() + y / cacheRes + 0.5f;
 				float lonCenter = coverage.getMinLon() + x / cacheRes + 0.5f;
 				
-				consumer.consumeWindow(new DEMWindow(vectors, x, y, 
+				consumer.consumeWindow(new DEMWindow(values, x, y, 
 						Math.min(dx, w-x), Math.min(dy, h-y),
 						new AOI(latCenter, lonCenter, 0.5f, 0.5f)));
 
 			}
 	}
 	
-	protected void appendTile(Vector3 [][] output, DEMTile tile, int res)
+	protected void appendTile(DEMValue [][] output, DEMTile tile, int res)
 	{
 		
 		int [][] heightmap = tile.getHeightmap(res);
@@ -102,15 +99,22 @@ public abstract class DEMProvider
 		for(int x = 0; x < res; x ++)
 			for(int y = 0; y < res; y ++)
 			{
+				
+				if(sx+x < 0 || sx+x >= output.length) continue;
+				if(sy+y < 0 || sy+y >= output[0].length) continue;
+				
 				float lat = maxLat - y * sLat;
 				float lon = minLon + x * sLon;
 				double earthRadius = GeoUtil.getEarthRadiusKm(lat, datum);
 				
-				// if no heightmap provided, assuming it is MSL
-				if( heightmap != null )
-					earthRadius += heightmap[x][y] / 100f;
+				float aboveMSLHeightM = 0;
+				if( heightmap != null ) // if no heightmap provided, assuming it is MSL
+					aboveMSLHeightM = heightmap[x][y];
 				
-				meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(earthRadius, lat, lon);
+				
+				earthRadius += aboveMSLHeightM;
+				
+				meteo.common.util.Vector3 pos = meteo.common.util.Vector3.GEODETIC(earthRadius, lat, lon);
 				
 				mmx.put(pos.xf());
 				mmy.put(pos.yf());
@@ -119,9 +123,31 @@ public abstract class DEMProvider
 				if( pos.x() < 0 || pos.y() < 0 ||pos.z() < 0)
 					System.out.println("hiuh");
 				
-				output[sx+x][sy+y] = new Vector3((float)pos.x(), (float)pos.y(), (float)pos.z());
-				
+				 Vector3 cartesianPos = new Vector3((float)pos.x(), (float)pos.y(), (float)pos.z());
+				 output[sx+x][sy+y] = new DEMValue(aboveMSLHeightM, cartesianPos, new PolarCoord(earthRadius, lat, lon));
 			}
 	}
+	
+	/**
+	 * @return
+	 */
+	protected DEMValue [][] loadAbsolutePositionsCache()
+	{
+		
+		DEMValue [][] output = new DEMValue[w][h];
+		
+		readTiles(coverage, tile -> appendTile(output, tile, cacheRes));
 
+		return output;
+	}
+	
+
+	protected int xidx(float lon) { return Math.round((lon - coverage.getMinLon()) / cacheRes); }
+	protected int yidx(float lat) { return Math.round((lat - coverage.getMinLat()) / cacheRes); }
+
+	private void checkInitialized()
+	{
+		if(this.values == null)
+			throw new IllegalStateException("DEM provider was not initialized");
+	}
 }

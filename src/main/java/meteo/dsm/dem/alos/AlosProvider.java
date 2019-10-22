@@ -1,10 +1,10 @@
 package meteo.dsm.dem.alos;
 
 
+import meteo.common.util.geodesy.Datum;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMProvider;
 import meteo.dsm.dem.DEMTileConsumer;
-import meteo.util.geodesy.Datum;
 import midas.core.spatial.AOI;
 
 public class AlosProvider extends DEMProvider

@@ -20,9 +20,9 @@ import org.opengis.parameter.ParameterValue;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import meteo.common.util.sampling.ArraySubsampler;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMTile;
-import meteo.util.sampling.ArraySubsampler;
 import midas.core.spatial.AOI;
 
 @Slf4j
