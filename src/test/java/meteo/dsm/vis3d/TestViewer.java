@@ -1,8 +1,8 @@
 package meteo.dsm.vis3d;
 
-import meteo.common.util.geodesy.Datum;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.vis.DSMOverlay;
+import meteo.util.geodesy.Datum;
 import meteo.viewer.ViewerEngine;
 import midas.core.spatial.AOI;
 
@@ -17,7 +17,7 @@ public class TestViewer
  		float latSpan = 5;
  		float lonSpan = 5;
         
-        AOI coverage = new AOI(centerLat, centerLon, latSpan, lonSpan);
+ 		AOI coverage = new AOI(centerLat, centerLon, latSpan, lonSpan);
         Datum datum = Datum.WGS_84;
 		
 		ViewerEngine engine = new ViewerEngine(coverage, datum);

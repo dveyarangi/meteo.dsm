@@ -14,7 +14,6 @@ import com.badlogic.gdx.graphics.g3d.Renderable;
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
 
 import lombok.extern.slf4j.Slf4j;
-import meteo.common.util.geodesy.Datum;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.DSMGrid;
 import meteo.dsm.dem.DEMProvider;
@@ -22,6 +21,7 @@ import meteo.dsm.dem.alos.AlosCfg;
 import meteo.dsm.dem.alos.AlosProvider;
 import meteo.dsm.landuse.LanduseProvider;
 import meteo.dsm.landuse.globcover.GlobCover;
+import meteo.util.geodesy.Datum;
 import meteo.viewer.IOverlay;
 import midas.core.spatial.AOI;
 

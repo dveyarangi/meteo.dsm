@@ -15,6 +15,7 @@ import org.imgscalr.Scalr;
 import org.junit.Test;
 
 import meteo.dsm.DSMCfg;
+import midas.core.spatial.AOI;
 import midas.visual.gis.GISResources;
 import midas.visual.gis.MapRenderer;
 import midas.visual.gis.PoliticalMapLayerConf;
@@ -84,7 +85,11 @@ public class TestAlosDSMTile
 		canvas.g2d.drawImage(scaledDSM, 0,0, outputWidth, outputHeight, 0, 0,outputWidth, outputHeight, null);
 		PoliticalMapLayerConf config = new PoliticalMapLayerConf();
 		
-		mr.renderMap(canvas.g2d(), config, tile.getCoverage(), outputWidth, outputHeight);
+		// TODO: disbanding dependency on midas.core
+		AOI coverage = new AOI(tile.getCoverage().getLatCenter(), tile.getCoverage().getLonCenter(),
+				tile.getCoverage().getLatSpan(), tile.getCoverage().getLonSpan());
+		
+		mr.renderMap(canvas.g2d(), config, coverage, outputWidth, outputHeight);
 		canvas.writeImage(new File(tile.getTileId() + ".png"), "png");
 		
 	}

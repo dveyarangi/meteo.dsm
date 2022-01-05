@@ -2,10 +2,10 @@ package meteo.dsm.dem.alos;
 
 import org.junit.Test;
 
-import meteo.common.util.geodesy.Datum;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMProvider;
 import midas.core.spatial.AOI;
+import meteo.util.geodesy.Datum;
 
 public class TestAlosProvider
 {

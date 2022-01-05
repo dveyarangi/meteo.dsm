@@ -3,8 +3,8 @@ package meteo.dsm.dem;
 import com.badlogic.gdx.math.Vector3;
 
 import lombok.Getter;
-import meteo.common.util.sampling.ArrayWindow;
-import meteo.common.util.sampling.MinMaxSampler;
+import meteo.util.sampling.ArrayWindow;
+import meteo.util.sampling.MinMaxSampler;
 import midas.core.spatial.AOI;
 
 public class DEMWindow extends ArrayWindow <DEMValue>
@@ -30,14 +30,14 @@ public class DEMWindow extends ArrayWindow <DEMValue>
 
 	public Vector3 normalAt(int x, int y, Vector3 out)
 	{
-		int w = arr.length-1;
-		int h = arr[0].length-1;
+		int w = arr.si()-1;
+		int h = arr.sj()-1;
 		x = xoff+x;
 		y = yoff+y;
-		Vector3 above = arr[x][y > 0 ? y-1 : y].getCartesianPos();
-		Vector3 below = arr[x][y < h ? y+1 : y].getCartesianPos();
-		Vector3 right = arr[x < w ? x+1 : x][y].getCartesianPos();
-		Vector3 leftt = arr[x > 0 ? x-1 : x][y].getCartesianPos();
+		Vector3 above = arr.at(x, y > 0 ? y-1 : y).getCartesianPos();
+		Vector3 below = arr.at(x, y < h ? y+1 : y).getCartesianPos();
+		Vector3 right = arr.at(x < w ? x+1 : x, y).getCartesianPos();
+		Vector3 leftt = arr.at(x > 0 ? x-1 : x, y).getCartesianPos();
 		
 		dy.set(below).sub(above);
 		dx.set(leftt).sub(right);
@@ -49,7 +49,7 @@ public class DEMWindow extends ArrayWindow <DEMValue>
 	
 
 	
-	private void extractMinMax()
+/*	private void extractMinMax()
 	{
 		if( mmx != null) return;
 		mmx = new MinMaxSampler();
@@ -62,5 +62,5 @@ public class DEMWindow extends ArrayWindow <DEMValue>
 				mmy.put(arr[i][j].getCartesianPos().y);
 				mmz.put(arr[i][j].getCartesianPos().z);
 			}
-	}
+	}*/
 }

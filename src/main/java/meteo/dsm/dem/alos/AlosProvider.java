@@ -1,10 +1,11 @@
 package meteo.dsm.dem.alos;
 
 
-import meteo.common.util.geodesy.Datum;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMProvider;
 import meteo.dsm.dem.DEMTileConsumer;
+
+import meteo.util.geodesy.Datum;
 import midas.core.spatial.AOI;
 
 public class AlosProvider extends DEMProvider
@@ -21,12 +22,12 @@ public class AlosProvider extends DEMProvider
 	@Override
 	public void readTiles( AOI coverage, DEMTileConsumer consumer )
 	{
-		int minLat = (int) Math.floor(coverage.getMinLat());
-		int maxLat = (int) Math.ceil (coverage.getMaxLat());
-		int minLon = (int) Math.floor(coverage.getMinLon());
-		int maxLon = (int) Math.ceil (coverage.getMaxLon());
-		for(int lat = minLat; lat < maxLat; lat ++ )
-			for(int lon = minLon; lon < maxLon; lon ++ )
+		int minLat = (int)coverage.getMinLat()-10;
+		int minLon = (int)coverage.getMinLon()-10;
+		int maxLat = (int)coverage.getMaxLat()+10;
+		int maxLon = (int)coverage.getMaxLon()+10;
+		for(int lat = minLat; lat <= maxLat; lat ++ )
+			for(int lon = minLon; lon <= maxLon; lon ++ )
 				consumer.consume( new AlosTile(cfg, alosCfg, lat, lon) );
 	}
 

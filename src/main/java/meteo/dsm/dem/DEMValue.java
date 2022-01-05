@@ -4,7 +4,7 @@ import com.badlogic.gdx.math.Vector3;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import meteo.common.util.geodesy.PolarCoord;
+import meteo.util.geodesy.PolarCoord;
 
 @AllArgsConstructor
 public class DEMValue

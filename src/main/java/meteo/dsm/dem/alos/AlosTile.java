@@ -20,9 +20,10 @@ import org.opengis.parameter.ParameterValue;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import meteo.common.util.sampling.ArraySubsampler;
 import meteo.dsm.DSMCfg;
 import meteo.dsm.dem.DEMTile;
+
+import meteo.util.sampling.ArraySubsampler;
 import midas.core.spatial.AOI;
 
 @Slf4j
@@ -154,7 +155,7 @@ public class AlosTile extends DEMTile
 				for(int y = 0; y < oh; y ++)
 				{
 					dsmRaster.getPixel(x, y, val);
-					origValues[x][y] = val[0];
+					origValues[x][oh-y-1] = val[0];
 				}
 
 			values = ArraySubsampler.subsample(origValues, res, null);

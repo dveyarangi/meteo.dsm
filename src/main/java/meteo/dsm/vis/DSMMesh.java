@@ -226,7 +226,9 @@ public class DSMMesh implements Disposable {
 		final float dx = (float)x / (float)(width - 1);
 		final float dy = (float)y / (float)(height - 1);
 		out.position.set(grid.getVectors().at(x, y).getCartesianPos());
-		out.color.set(grid.getColors()[x][y]);
+
+		out.color.set(0.5f,0.5f,0.5f,1);
+		//out.color.set(grid.getColors()[x][y]);
 		//out.color.set(color00).lerp(color10, dx).lerp(tmpC.set(color01).lerp(color11, dx), dy);
 		out.uv.set(dx, dy).scl(uvScale).add(uvOffset);
 		return out;

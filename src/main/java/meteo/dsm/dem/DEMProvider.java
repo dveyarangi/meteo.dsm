@@ -2,15 +2,21 @@ package meteo.dsm.dem;
 
 import com.badlogic.gdx.math.Vector3;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import meteo.common.util.geodesy.Datum;
-import meteo.common.util.geodesy.GeoUtil;
-import meteo.common.util.geodesy.PolarCoord;
-import meteo.common.util.sampling.MinMaxSampler;
 import meteo.dsm.DSMCfg;
+import meteo.util.geodesy.Datum;
+import meteo.util.geodesy.GeoUtil;
+import meteo.util.geodesy.PolarCoord;
+import meteo.util.sampling.MinMaxSampler;
 import midas.core.spatial.AOI;
 
 
+/**
+ * TODO: not thread safe! due to usage of temp vectors {@link #dx} and {@link #dy}
+ * @author Fima
+ *
+ */
 @Slf4j
 public abstract class DEMProvider
 {
@@ -25,7 +31,7 @@ public abstract class DEMProvider
 	
 	private int w, h;
 
-	private DEMValue[][] values;
+	@Getter private DEMValue[][] values;
 	
 	MinMaxSampler mmx = new MinMaxSampler();
 	MinMaxSampler mmy = new MinMaxSampler();
@@ -39,29 +45,153 @@ public abstract class DEMProvider
 	 * @param datum
 	 * @param res - grid samples per lat/lon unit
 	 */
-	protected DEMProvider(DSMCfg cfg, AOI coverage, Datum datum, int cacheRes)
+	protected DEMProvider(DSMCfg cfg, AOI cover, Datum datum, int cacheRes)
 	{
 		this.cfg = cfg;
-		this.coverage = coverage;
 		this.datum = datum;
 		this.cacheRes = cacheRes;
-		this.h = (int) ( (coverage.getMaxLat() - coverage.getMinLat()) * cacheRes );
-		this.w = (int) ( (coverage.getMaxLon() - coverage.getMinLon()) * cacheRes );
+		
+		int minLat = (int) Math.floor(cover.getMinLat());
+		int maxLat = (int) Math.ceil (cover.getMaxLat());
+		int minLon = (int) Math.floor(cover.getMinLon());
+		int maxLon = (int) Math.ceil (cover.getMaxLon());
+		
+		this.coverage = AOI.fromEdges(minLat, minLon, maxLat, maxLon);
+		this.h = (int) ( (this.coverage.getMaxLat() - this.coverage.getMinLat()) * cacheRes );
+		this.w = (int) ( (this.coverage.getMaxLon() - this.coverage.getMinLon()) * cacheRes );
 	}
 	
 	public void init() {
-		log.debug("Caching DEM data...");
+		log.trace("Caching DEM data...");
 		this.values = loadAbsolutePositionsCache();
 	}
 	
 	public DEMValue at(float lat, float lon)
 	{
 		checkInitialized();
-		
-		return values[xidx(lon)][yidx(lat)];
+		int xidx = xidx(lon);
+		int yidx = yidx(lat);
+		return values[xidx][yidx];
 		
 	}
+	
+	public float interpolateEarthRadius( float lat, float lon, Datum datum )
+	{
+		float msl = getMeanSeaLevelM(lat, lon);
+		double earthRadius = GeoUtil.getEarthRadiusKm(lat, datum);
+		//meteo.common.util.Vector3 pos = meteo.common.util.Vector3.GEODETIC(earthRadius, lat, lon);
+	
+		
+		return (float)(earthRadius + msl/1000f);
+	}
+	
+	public float getMeanSeaLevelM( float lat, float lon )
+	{
+		int w = values.length-1;
+		int h = values[0].length-1;
+		int x = xidx(lon);
+		int y = yidx(lat);
+		
+		DEMValue q00 = values[x][y];
+		DEMValue q01 = values[x][y < h ? y+1 : y];
+		DEMValue q10 = values[x < w ? x+1 : x][y];
+		DEMValue q11 = values[x < w ? x+1 : x][y < h ? y+1 : y];
+		
+		PolarCoord p00 = q00.getPolarPos();
+		PolarCoord p01 = q01.getPolarPos();
+		PolarCoord p10 = q10.getPolarPos();
+		PolarCoord p11 = q11.getPolarPos();
 
+		// converting to lower closest index:
+		double dx = p11.getLongitude() - p00.getLongitude(); 
+		double dy = p11.getLatitude() - p00.getLatitude();
+		
+		double f1 = (p11.getLongitude() - lon) / dx * q00.aboveMSLheightM + (lon - p00.getLongitude()) / dx * q10.aboveMSLheightM;
+		double f2 = (p11.getLongitude() - lon) / dx * q01.aboveMSLheightM + (lon - p00.getLongitude()) / dx * q11.aboveMSLheightM;
+		
+		double aa = (p11.getLatitude() - lat);
+		double bb = (lat - p00.getLatitude());
+		double value = (p11.getLatitude() - lat) / dy * f1 + (lat - p00.getLatitude()) / dy * f2;
+		
+		
+		return (float)value;
+	}
+	
+	Vector3 q00 = new Vector3();
+	Vector3 q01 = new Vector3();
+	Vector3 q10 = new Vector3();
+	Vector3 q11 = new Vector3();
+	
+	
+	public Vector3 interpolateNormal( float lat, float lon, Vector3 out )
+	{
+		int w = values.length-1;
+		int h = values[0].length-1;
+		int x = xidx(lon);
+		int y = yidx(lat);
+		q00 = normalAt(x, y, q00);
+		q01 = normalAt(x, y < h ? y+1 : y, q01);
+		q10 = normalAt(x < w ? x+1 : x, y, q10);
+		q11 = normalAt(x < w ? x+1 : x, y < h ? y+1 : y, q11);
+		DEMValue v00 = values[x][y];
+		DEMValue v01 = values[x][y < h ? y+1 : y];
+		DEMValue v10 = values[x < w ? x+1 : x][y];
+		DEMValue v11 = values[x < w ? x+1 : x][y < h ? y+1 : y];
+	
+		PolarCoord p00 = v00.getPolarPos();
+		PolarCoord p01 = v01.getPolarPos();
+		PolarCoord p10 = v10.getPolarPos();
+		PolarCoord p11 = v11.getPolarPos();
+
+		// converting to lower closest index:
+		double dx = p11.getLongitude() - p00.getLongitude(); 
+		double dy = p11.getLatitude() - p00.getLatitude();
+		
+		double fx1 = (p11.getLongitude() - lon) / dx * q00.x + (lon - p00.getLongitude()) / dx * q10.x;
+		double fx2 = (p11.getLongitude() - lon) / dx * q01.x + (lon - p00.getLongitude()) / dx * q11.x;
+		double ix = (p11.getLatitude() - lat) / dy * fx1 + (lat - p00.getLatitude()) / dy * fx2;
+		double fy1 = (p11.getLongitude() - lon) / dx * q00.y + (lon - p00.getLongitude()) / dx * q10.y;
+		double fy2 = (p11.getLongitude() - lon) / dx * q01.y + (lon - p00.getLongitude()) / dx * q11.y;
+		double iy = (p11.getLatitude() - lat) / dy * fy1 + (lat - p00.getLatitude()) / dy * fy2;
+		double fz1 = (p11.getLongitude() - lon) / dx * q00.z + (lon - p00.getLongitude()) / dx * q10.z;
+		double fz2 = (p11.getLongitude() - lon) / dx * q01.z + (lon - p00.getLongitude()) / dx * q11.z;
+		double iz = (p11.getLatitude() - lat) / dy * fz1 + (lat - p00.getLatitude()) / dy * fz2;
+
+		return out.set((float)ix, (float)iy, (float)iz);
+	}
+
+	
+	// temp vectors
+	Vector3 dx = new Vector3();
+	Vector3 dy = new Vector3();
+
+	public Vector3 normalAt(float lat, float lon)
+	{
+		return normalAt(lat, lon, new Vector3());
+	}
+	
+	public Vector3 normalAt(float lat, float lon, Vector3 out)
+	{
+		return normalAt(xidx(lon), yidx(lat), out);
+	}
+	
+	public Vector3 normalAt(int x, int y, Vector3 out)
+	{
+		
+		int w = values.length-1;
+		int h = values[0].length-1;
+		Vector3 above = values[x][y > 0 ? y-1 : y].getCartesianPos();
+		Vector3 below = values[x][y < h ? y+1 : y].getCartesianPos();
+		Vector3 right = values[x < w ? x+1 : x][y].getCartesianPos();
+		Vector3 leftt = values[x > 0 ? x-1 : x][y].getCartesianPos();
+		
+		dy.set(below).sub(above);
+		dx.set(leftt).sub(right);
+		
+		out = out.set(dx).crs(dy).nor().scl(-1);
+		
+		return out;
+	}
 	public void iterateWindows(int dx, int dy, DEMWindowConsumer consumer)
 	{
 		for(int x = 0; x < w; x += dx)
@@ -103,7 +233,7 @@ public abstract class DEMProvider
 				if(sx+x < 0 || sx+x >= output.length) continue;
 				if(sy+y < 0 || sy+y >= output[0].length) continue;
 				
-				float lat = maxLat - y * sLat;
+				float lat = minLat + y * sLat;
 				float lon = minLon + x * sLon;
 				double earthRadius = GeoUtil.getEarthRadiusKm(lat, datum);
 				
@@ -112,9 +242,9 @@ public abstract class DEMProvider
 					aboveMSLHeightM = heightmap[x][y];
 				
 				
-				earthRadius += aboveMSLHeightM;
+				earthRadius += aboveMSLHeightM/1000;
 				
-				meteo.common.util.Vector3 pos = meteo.common.util.Vector3.GEODETIC(earthRadius, lat, lon);
+				meteo.util.Vector3 pos = meteo.util.Vector3.GEODETIC(earthRadius, lat, lon);
 				
 				mmx.put(pos.xf());
 				mmy.put(pos.yf());
@@ -142,8 +272,8 @@ public abstract class DEMProvider
 	}
 	
 
-	protected int xidx(float lon) { return Math.round((lon - coverage.getMinLon()) / cacheRes); }
-	protected int yidx(float lat) { return Math.round((lat - coverage.getMinLat()) / cacheRes); }
+	public int xidx(float lon) { return (int) Math.floor((lon - coverage.getMinLon()) * cacheRes); }
+	public int yidx(float lat) { return (int) Math.floor((lat - coverage.getMinLat()) * cacheRes); }
 
 	private void checkInitialized()
 	{
